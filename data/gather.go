@@ -12,10 +12,6 @@ import (
 	pipe "gopkg.in/m-lab/pipe.v3"
 )
 
-var (
-	root = "/var/spool/nodeinfo"
-)
-
 // Gatherer holds all the information needed about a single data-producing command.
 type Gatherer struct {
 	Datatype string
@@ -29,14 +25,14 @@ func (g Gatherer) filename(t time.Time) string {
 }
 
 // makeDirectories creates all the required directories to hold the output filename.
-func (g Gatherer) makeDirectories(t time.Time) (string, error) {
+func (g Gatherer) makeDirectories(t time.Time, root string) (string, error) {
 	dirname := path.Join(root, g.Datatype, t.Format("2006/01/02"))
 	return dirname, os.MkdirAll(dirname, 0775)
 }
 
 // Gather runs the command and gathers the data into the file in the directory.
-func (g Gatherer) Gather(t time.Time) {
-	dir, err := g.makeDirectories(t)
+func (g Gatherer) Gather(t time.Time, root string) {
+	dir, err := g.makeDirectories(t, root)
 	rtx.Must(err, "Could not make %q", dir)
 	outputfile := path.Join(dir, g.filename(t))
 	log.Print(outputfile)

@@ -14,15 +14,18 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/m-lab/go/flagx"
+
 	"github.com/m-lab/nodeinfo/data"
 )
 
 var (
-	once = flag.Bool("once", true, "Only gather data once")
+	datadir = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once    = flag.Bool("once", true, "Only gather data once")
 )
 
 // Runs every data gatherer.
-func gather() {
+func gather(datadir string) {
 	t := time.Now()
 	for _, g := range []data.Gatherer{
 		{
@@ -56,16 +59,18 @@ func gather() {
 			Cmd:      []string{"uname", "-a"},
 		},
 	} {
-		g.Gather(t)
+		g.Gather(t, datadir)
 	}
 }
 
 func main() {
+	flag.Parse()
+	flagx.ArgsFromEnv(flag.CommandLine)
 	if *once {
-		gather()
+		gather(*datadir)
 	} else {
 		for {
-			gather()
+			gather(*datadir)
 			time.Sleep(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(time.Hour)))
 		}
 	}
