@@ -1,15 +1,14 @@
 FROM golang:1.11 as build
-ADD . /go/src/github.com/m-lab/metadata-collector
-RUN go get -v github.com/m-lab/metadata-collector
+ADD . /go/src/github.com/m-lab/nodeinfo
+RUN go get -v github.com/m-lab/nodeinfo
 
 FROM alpine:3.7
 RUN apk add lshw
-COPY --from=build /go/bin/metadata-collector /
+COPY --from=build /go/bin/nodeinfo /
 WORKDIR /
-# Run the collector once to verify that every command it invokes can be invoked inside the container.
-RUN /metadata-collector -once
+# Run things once to verify that every command invoked can be invoked inside the container.
+RUN /nodeinfo -once
 # Remove the created directories to allow them to be mountpoints when deployed.
-RUN rm -Rf /var/spool/configuration
-RUN rm -Rf /var/spool/hardware
-RUN rm -Rf /var/spool/software
+RUN rm -Rf /var/spool/nodeinfo
 # If we made it here, then everything works!
+ENTRYPOINT ["/nodeinfo"]

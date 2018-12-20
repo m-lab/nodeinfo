@@ -14,24 +14,28 @@ import (
 
 var (
 	once = flag.Bool("once", true, "Only run the check once")
+	root = "/var/spool/nodeinfo"
 )
 
+// DataGatherer holds all the information needed about a single data-producing command.
 type DataGatherer struct {
-	root     string
 	datatype string
 	filename string
 	cmd      []string
 }
 
+// Filename generates the output filename from the timestamp.
 func (d DataGatherer) Filename(t time.Time) string {
 	return t.Format("20060102T15:04:05Z-") + d.filename
 }
 
+// MakeDirectories creates all the required directories to hold the output filename.
 func (d DataGatherer) MakeDirectories(t time.Time) (string, error) {
-	dirname := path.Join(d.root, d.datatype, t.Format("2006/01/02"))
+	dirname := path.Join(root, d.datatype, t.Format("2006/01/02"))
 	return dirname, os.MkdirAll(dirname, 0775)
 }
 
+// Gather runs the command and gathers the data into the file in the directory.
 func (d DataGatherer) Gather() {
 	t := time.Now()
 	dir, err := d.MakeDirectories(t)
@@ -47,31 +51,26 @@ func main() {
 	for {
 		for _, g := range []DataGatherer{
 			{
-				root:     "/var/spool/hardware",
 				datatype: "lshw",
 				filename: "lshw.json",
 				cmd:      []string{"lshw", "-json"},
 			},
 			{
-				root:     "/var/spool/hardware",
 				datatype: "lspci",
 				filename: "lspci.txt",
 				cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
 			},
 			{
-				root:     "/var/spool/configuration",
 				datatype: "ifconfig",
 				filename: "ifconfig.txt",
 				cmd:      []string{"ifconfig", "-a"},
 			},
 			{
-				root:     "/var/spool/configuration",
 				datatype: "route",
 				filename: "route-ipv4.txt",
 				cmd:      []string{"route", "-n", "-A", "inet"},
 			},
 			{
-				root:     "/var/spool/configuration",
 				datatype: "route",
 				filename: "route-ipv6.txt",
 				cmd:      []string{"route", "-n", "-A", "inet6"},
