@@ -1,86 +1,76 @@
+// nodeinfo is a utility program for gathering all hw/sw/config data from a
+// node that may be operationally relevant.  It is intended to produce lots of
+// small files, each with the output of "ifconfig" or "lshw" or another command
+// like that. The hope is that by doing this, we will be able to track over
+// time what hardware was installed, what software versions were running, and
+// how the network was configured on every node in the M-Lab fleet.  Every time
+// we turn out to need a new small diagnostic command, that command should be
+// added to the list and a new image pushed.
 package main
 
 import (
 	"flag"
 	"math"
 	"math/rand"
-	"os"
-	"path"
 	"time"
 
-	"github.com/m-lab/go/rtx"
-	pipe "gopkg.in/m-lab/pipe.v3"
+	"github.com/m-lab/go/flagx"
+
+	"github.com/m-lab/nodeinfo/data"
 )
 
 var (
-	once = flag.Bool("once", true, "Only run the check once")
-	root = "/var/spool/nodeinfo"
+	datadir = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once    = flag.Bool("once", true, "Only gather data once")
 )
 
-// DataGatherer holds all the information needed about a single data-producing command.
-type DataGatherer struct {
-	datatype string
-	filename string
-	cmd      []string
-}
-
-// Filename generates the output filename from the timestamp.
-func (d DataGatherer) Filename(t time.Time) string {
-	return t.Format("20060102T15:04:05Z-") + d.filename
-}
-
-// MakeDirectories creates all the required directories to hold the output filename.
-func (d DataGatherer) MakeDirectories(t time.Time) (string, error) {
-	dirname := path.Join(root, d.datatype, t.Format("2006/01/02"))
-	return dirname, os.MkdirAll(dirname, 0775)
-}
-
-// Gather runs the command and gathers the data into the file in the directory.
-func (d DataGatherer) Gather() {
+// Runs every data gatherer.
+func gather(datadir string) {
 	t := time.Now()
-	dir, err := d.MakeDirectories(t)
-	rtx.Must(err, "Could not make %q", dir)
-	outputfile := path.Join(dir, d.Filename(t))
-	command := pipe.Line(
-		pipe.Exec(d.cmd[0], d.cmd[1:]...),
-		pipe.WriteFile(outputfile, 0666))
-	rtx.Must(pipe.Run(command), "Could not gather %s data", d.datatype)
+	for _, g := range []data.Gatherer{
+		{
+			Datatype: "lshw",
+			Filename: "lshw.json",
+			Cmd:      []string{"lshw", "-json"},
+		},
+		{
+			Datatype: "lspci",
+			Filename: "lspci.txt",
+			Cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
+		},
+		{
+			Datatype: "ifconfig",
+			Filename: "ifconfig.txt",
+			Cmd:      []string{"ifconfig", "-a"},
+		},
+		{
+			Datatype: "route",
+			Filename: "route-ipv4.txt",
+			Cmd:      []string{"route", "-n", "-A", "inet"},
+		},
+		{
+			Datatype: "route",
+			Filename: "route-ipv6.txt",
+			Cmd:      []string{"route", "-n", "-A", "inet6"},
+		},
+		{
+			Datatype: "uname",
+			Filename: "uname.txt",
+			Cmd:      []string{"uname", "-a"},
+		},
+	} {
+		g.Gather(t, datadir)
+	}
 }
 
 func main() {
-	for {
-		for _, g := range []DataGatherer{
-			{
-				datatype: "lshw",
-				filename: "lshw.json",
-				cmd:      []string{"lshw", "-json"},
-			},
-			{
-				datatype: "lspci",
-				filename: "lspci.txt",
-				cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
-			},
-			{
-				datatype: "ifconfig",
-				filename: "ifconfig.txt",
-				cmd:      []string{"ifconfig", "-a"},
-			},
-			{
-				datatype: "route",
-				filename: "route-ipv4.txt",
-				cmd:      []string{"route", "-n", "-A", "inet"},
-			},
-			{
-				datatype: "route",
-				filename: "route-ipv6.txt",
-				cmd:      []string{"route", "-n", "-A", "inet6"},
-			},
-		} {
-			g.Gather()
-		}
-		if *once {
-			break
-		} else {
+	flag.Parse()
+	flagx.ArgsFromEnv(flag.CommandLine)
+	if *once {
+		gather(*datadir)
+	} else {
+		for {
+			gather(*datadir)
 			time.Sleep(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(time.Hour)))
 		}
 	}
