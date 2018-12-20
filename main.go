@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"math"
 	"math/rand"
@@ -20,8 +21,9 @@ import (
 )
 
 var (
-	datadir = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
-	once    = flag.Bool("once", true, "Only gather data once")
+	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once        = flag.Bool("once", true, "Only gather data once")
+	ctx, cancel = context.WithCancel(context.Background())
 )
 
 // Runs every data gatherer.
@@ -67,11 +69,15 @@ func main() {
 	flag.Parse()
 	flagx.ArgsFromEnv(flag.CommandLine)
 	if *once {
+		cancel()
+	}
+	for {
 		gather(*datadir)
-	} else {
-		for {
-			gather(*datadir)
-			time.Sleep(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(time.Hour)))
+		select {
+		case <-time.After(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(time.Hour))):
+			// do nothing, keep looping
+		case <-ctx.Done():
+			return
 		}
 	}
 }
