@@ -1,6 +1,6 @@
 # nodeinfo
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/m-lab/nodeinfo)](https://goreportcard.com/report/github.com/m-lab/nodeinfo)
+[![GoDoc](https://godoc.org/github.com/m-lab/nodeinfo?status.svg)](https://godoc.org/github.com/m-lab/nodeinfo) [![Build Status](https://travis-ci.org/m-lab/nodeinfo.svg?branch=master)](https://travis-ci.org/m-lab/nodeinfo) [![Coverage Status](https://coveralls.io/repos/github/m-lab/nodeinfo/badge.svg?branch=master)](https://coveralls.io/github/m-lab/nodeinfo?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/m-lab/nodeinfo)](https://goreportcard.com/report/github.com/m-lab/nodeinfo)
 
 This collects data about the hardware, software, and configs on nodes on the
 [M-Lab](https://www.measurementlab.net) platform.  Every hour (in expectation,
