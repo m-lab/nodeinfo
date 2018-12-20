@@ -10,8 +10,6 @@ import (
 )
 
 // Tests are in package data to allow saving data somewhere besides /var/spool/nodeinfo
-var ()
-
 func TestGather(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestGather")
 	rtx.Must(err, "Could not create tempdir")
