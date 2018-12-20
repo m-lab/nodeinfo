@@ -1,3 +1,5 @@
+// Package data provides all the methods needed for collecting and saving node
+// data to disk.
 package data
 
 import (

@@ -10,16 +10,10 @@ import (
 )
 
 // Tests are in package data to allow saving data somewhere besides /var/spool/nodeinfo
-var (
-	g = Gatherer{
-		Datatype: "test",
-		Filename: "testfile.txt",
-		Cmd:      []string{"echo", "hi"},
-	}
-)
+var ()
 
-func TestMakedir(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestMakedir")
+func TestGather(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestGather")
 	rtx.Must(err, "Could not create tempdir")
 	oldroot := root
 	root = dir
@@ -28,6 +22,11 @@ func TestMakedir(t *testing.T) {
 		os.RemoveAll(dir)
 	}()
 	ts := time.Date(2018, 12, 13, 11, 45, 23, 0, time.UTC)
+	g := Gatherer{
+		Datatype: "test",
+		Filename: "testfile.txt",
+		Cmd:      []string{"echo", "hi"},
+	}
 	g.Gather(ts)
 	data, err := ioutil.ReadFile(dir + "/test/2018/12/13/20181213T11:45:23.000Z-testfile.txt")
 	if err != nil || string(data) != "hi\n" {
