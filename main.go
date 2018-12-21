@@ -9,23 +9,26 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"math"
-	"math/rand"
 	"time"
 
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/memoryless"
+	"github.com/m-lab/go/rtx"
 
 	"github.com/m-lab/nodeinfo/data"
 )
 
 var (
-	datadir = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
-	once    = flag.Bool("once", true, "Only gather data once")
+	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once        = flag.Bool("once", true, "Only gather data once")
+	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
+	ctx, cancel = context.WithCancel(context.Background())
 )
 
 // Runs every data gatherer.
-func gather(datadir string) {
+func gather() {
 	t := time.Now()
 	for _, g := range []data.Gatherer{
 		{
@@ -59,19 +62,14 @@ func gather(datadir string) {
 			Cmd:      []string{"uname", "-a"},
 		},
 	} {
-		g.Gather(t, datadir)
+		g.Gather(t, *datadir)
 	}
 }
 
 func main() {
 	flag.Parse()
 	flagx.ArgsFromEnv(flag.CommandLine)
-	if *once {
-		gather(*datadir)
-	} else {
-		for {
-			gather(*datadir)
-			time.Sleep(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(time.Hour)))
-		}
-	}
+	rtx.Must(
+		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once}),
+		"Bad time arguments.")
 }
