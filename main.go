@@ -23,8 +23,8 @@ import (
 var (
 	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
 	once        = flag.Bool("once", true, "Only gather data once")
-	ctx, cancel = context.WithCancel(context.Background())
 	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
+	ctx, cancel = context.WithCancel(context.Background())
 )
 
 // Runs every data gatherer.
