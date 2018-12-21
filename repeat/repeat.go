@@ -1,3 +1,5 @@
+// Package repeat helps repeated calls to a function be distributed in a
+// memoryless fashion.
 package repeat
 
 import (
