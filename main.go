@@ -11,9 +11,9 @@ package main
 import (
 	"context"
 	"flag"
-	"math"
-	"math/rand"
 	"time"
+
+	"github.com/m-lab/nodeinfo/repeat"
 
 	"github.com/m-lab/go/flagx"
 
@@ -28,7 +28,7 @@ var (
 )
 
 // Runs every data gatherer.
-func gather(datadir string) {
+func gather() {
 	t := time.Now()
 	for _, g := range []data.Gatherer{
 		{
@@ -62,23 +62,12 @@ func gather(datadir string) {
 			Cmd:      []string{"uname", "-a"},
 		},
 	} {
-		g.Gather(t, datadir)
+		g.Gather(t, *datadir)
 	}
 }
 
 func main() {
 	flag.Parse()
 	flagx.ArgsFromEnv(flag.CommandLine)
-	if *once {
-		cancel()
-	}
-	for {
-		gather(*datadir)
-		select {
-		case <-time.After(time.Duration(math.Min(rand.ExpFloat64(), 4) * float64(*waittime))):
-			// do nothing, keep looping
-		case <-ctx.Done():
-			return
-		}
-	}
+	repeat.Forever(ctx, gather, repeat.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once})
 }
