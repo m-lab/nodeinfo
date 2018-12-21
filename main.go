@@ -25,12 +25,8 @@ var (
 	once        = flag.Bool("once", true, "Only gather data once")
 	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
 	ctx, cancel = context.WithCancel(context.Background())
-)
 
-// Runs every data gatherer.
-func gather() {
-	t := time.Now()
-	for _, g := range []data.Gatherer{
+	gatherers = []data.Gatherer{
 		{
 			Datatype: "lshw",
 			Filename: "lshw.json",
@@ -40,6 +36,11 @@ func gather() {
 			Datatype: "lspci",
 			Filename: "lspci.txt",
 			Cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
+		},
+		{
+			Datatype: "lsusb",
+			Filename: "lsusb.txt",
+			Cmd:      []string{"lsusb", "-v"},
 		},
 		{
 			Datatype: "ifconfig",
@@ -61,7 +62,13 @@ func gather() {
 			Filename: "uname.txt",
 			Cmd:      []string{"uname", "-a"},
 		},
-	} {
+	}
+)
+
+// Runs every data gatherer.
+func gather() {
+	t := time.Now()
+	for _, g := range gatherers {
 		g.Gather(t, *datadir)
 	}
 }
