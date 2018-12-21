@@ -13,9 +13,9 @@ import (
 	"flag"
 	"time"
 
-	"github.com/m-lab/nodeinfo/repeat"
-
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/memoryless"
+	"github.com/m-lab/go/rtx"
 
 	"github.com/m-lab/nodeinfo/data"
 )
@@ -69,5 +69,7 @@ func gather() {
 func main() {
 	flag.Parse()
 	flagx.ArgsFromEnv(flag.CommandLine)
-	repeat.Forever(ctx, gather, repeat.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once})
+	rtx.Must(
+		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once}),
+		"Bad time arguments.")
 }
