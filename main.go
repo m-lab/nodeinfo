@@ -42,6 +42,11 @@ func gather() {
 			Cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
 		},
 		{
+			Datatype: "lsusb",
+			Filename: "lsusb.txt",
+			Cmd:      []string{"lsusb", "-v"},
+		},
+		{
 			Datatype: "ifconfig",
 			Filename: "ifconfig.txt",
 			Cmd:      []string{"ifconfig", "-a"},
