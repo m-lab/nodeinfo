@@ -75,15 +75,7 @@ func TestMainMultiple(t *testing.T) {
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
 	*prometheusx.ListenAddress = ":0"
-	datatypes = flagx.StringArray{"uname", "falseForTesting", "bad_datatype_shouldn't_crash_things"}
-	defer func() {
-		delete(gatherers, "falseForTesting")
-	}()
-	gatherers["falseForTesting"] = data.Gatherer{
-		Datatype: "false",
-		Filename: "false.txt",
-		Cmd:      []string{"false"},
-	}
+	datatypes = flagx.StringArray{"uname", "bad datatype shouldn't crash things"}
 
 	// Run main but sleep for .5 seconds to guarantee that the timer will go off on
 	// its own at least once.

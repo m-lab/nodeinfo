@@ -1,6 +1,6 @@
 FROM golang:1.12 as build
 ENV CGO_ENABLED 0
-ADD . /go/src/github.com/m-lab/nodeinfo
+COPY . /go/src/github.com/m-lab/nodeinfo
 WORKDIR /go/src/github.com/m-lab/nodeinfo
 RUN go get \
     -v \
@@ -8,7 +8,7 @@ RUN go get \
     ./...
 
 FROM alpine:3.7
-RUN apk add lshw
+RUN apk add --no-cache lshw
 COPY --from=build /go/bin/nodeinfo /
 WORKDIR /
 # Run things once to verify that every command invoked can be invoked inside the container.
