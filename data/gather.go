@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/m-lab/nodeinfo/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/m-lab/go/rtx"
 	pipe "gopkg.in/m-lab/pipe.v3"
@@ -34,6 +35,7 @@ func (g Gatherer) makeDirectories(t time.Time, root string) (string, error) {
 
 // Gather runs the command and gathers the data into the file in the directory.
 func (g Gatherer) Gather(t time.Time, root string, crashOnError bool) {
+	// Optionally recover from errors.
 	if !crashOnError {
 		defer func() {
 			if r := recover(); r != nil {
@@ -42,11 +44,14 @@ func (g Gatherer) Gather(t time.Time, root string, crashOnError bool) {
 			}
 		}()
 	}
+
+	// Report metrics.
 	metrics.GatherRuns.WithLabelValues(g.Datatype).Inc()
-	start := time.Now()
+	timer := prometheus.NewTimer(metrics.GatherRuntime.WithLabelValues(g.Datatype))
+	defer timer.ObserveDuration()
+
+	// Run the command.
 	g.gather(t, root)
-	end := time.Now()
-	metrics.GatherRuntime.WithLabelValues(g.Datatype).Observe(end.Sub(start).Seconds())
 }
 
 func (g Gatherer) gather(t time.Time, root string) {
