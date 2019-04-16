@@ -54,6 +54,8 @@ func (g Gatherer) Gather(t time.Time, root string, crashOnError bool) {
 	g.gather(t, root)
 }
 
+// gather runs the command. Gather sets up all monitoring, metrics, and
+// recovery code, and then gather() does the work.
 func (g Gatherer) gather(t time.Time, root string) {
 	dir, err := g.makeDirectories(t, root)
 	rtx.PanicOnError(err, "Could not make %q", dir)

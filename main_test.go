@@ -77,8 +77,8 @@ func TestMainMultiple(t *testing.T) {
 	*prometheusx.ListenAddress = ":0"
 	datatypes = flagx.StringArray{"uname", "bad datatype shouldn't crash things"}
 
-	// Run main but sleep for .5 seconds to guarantee that the timer will go off on
-	// its own at least once.
+	// Run main but sleep for .5s to guarantee that the timer will go off on its
+	// own multiple times.
 	go func() {
 		time.Sleep(500 * time.Millisecond)
 		cancel()
@@ -93,6 +93,9 @@ func TestMainMultiple(t *testing.T) {
 		}
 		return nil
 	})
+	// The timer going off multiple times should produce multiple files. Thanks to
+	// randomness, we don't know exactly how many times, but it should definitely
+	// be more than once.
 	if filecount <= 1 {
 		t.Errorf("Not enough files were produced when we ran main.")
 	}
