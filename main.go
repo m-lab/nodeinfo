@@ -10,9 +10,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/m-lab/go/prometheusx"
@@ -27,89 +27,39 @@ import (
 var (
 	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
 	once        = flag.Bool("once", false, "Only gather data once")
-	smoketest   = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all data types can be gathered.")
+	smoketest   = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all configured data types can be gathered.")
 	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
-	datatypes   = flagx.StringArray{}
+	config      = flagx.FileBytes{}
 	ctx, cancel = context.WithCancel(context.Background())
 
-	gatherers = map[string]data.Gatherer{
-		"lshw": {
-			Datatype: "lshw",
-			Filename: "lshw.json",
-			Cmd:      []string{"lshw", "-json"},
-		},
-		"lspci": {
-			Datatype: "lspci",
-			Filename: "lspci.txt",
-			Cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
-		},
-		"lsusb": {
-			Datatype: "lsusb",
-			Filename: "lsusb.txt",
-			Cmd:      []string{"lsusb", "-v"},
-		},
-		"ifconfig": {
-			Datatype: "ifconfig",
-			Filename: "ifconfig.txt",
-			Cmd:      []string{"ifconfig", "-a"},
-		},
-		"route-v4": {
-			Datatype: "route",
-			Filename: "route-ipv4.txt",
-			Cmd:      []string{"route", "-n", "-A", "inet"},
-		},
-		"route-v6": {
-			Datatype: "route",
-			Filename: "route-ipv6.txt",
-			Cmd:      []string{"route", "-n", "-A", "inet6"},
-		},
-		"uname": {
-			Datatype: "uname",
-			Filename: "uname.txt",
-			Cmd:      []string{"uname", "-a"},
-		},
-	}
+	// gatherers should be filled in by the config-reading process
+	gatherers = []data.Gatherer{}
 )
-
-func possibleTypes() []string {
-	datatypes := []string{}
-	for datatype := range gatherers {
-		datatypes = append(datatypes, datatype)
-	}
-	return datatypes
-}
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.LUTC | log.LstdFlags)
-
-	flag.Var(&datatypes, "datatype", "What datatype should be collected. This flag can be used multiple times.  The set of possible datatypes is: {"+strings.Join(possibleTypes(), ", ")+"}")
+	flag.Var(&config, "config", "The name of the config file containg the json config for nodeinfo.")
 }
 
 // Runs every data gatherer.
 func gather() {
+	log.Println("About to gather", len(gatherers), "times")
 	t := time.Now()
-	for _, datatype := range datatypes {
-		g, ok := gatherers[datatype]
-		if ok {
-			g.Gather(t, *datadir, *smoketest)
-		} else {
-			log.Println("Unknown datatype:", datatype)
-		}
+	for _, g := range gatherers {
+		g.Gather(t, *datadir, *smoketest)
 	}
 }
 
 func main() {
 	flag.Parse()
 	flagx.ArgsFromEnv(flag.CommandLine)
-	if *smoketest {
-		*once = true
-		datatypes = possibleTypes()
-	}
+
+	rtx.Must(json.Unmarshal(config, &gatherers), "Could not read config")
 
 	srv := prometheusx.MustServeMetrics()
 	defer srv.Close()
 
 	rtx.Must(
-		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once}),
+		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
 		"Bad time arguments.")
 }

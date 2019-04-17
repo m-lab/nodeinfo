@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/nodeinfo/data"
 
-	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/osx"
 	"github.com/m-lab/go/rtx"
 )
@@ -25,18 +25,20 @@ func TestMainOnce(t *testing.T) {
 	revertOnce := osx.MustSetenv("ONCE", "true")
 	revertSmoketest := osx.MustSetenv("SMOKETEST", "true")
 	og := gatherers
-	gatherers = map[string]data.Gatherer{
-		"uname": {
+	oc := config
+	config, err = json.Marshal([]data.Gatherer{
+		{
 			Datatype: "uname",
 			Filename: "uname.txt",
 			Cmd:      []string{"uname", "-a"},
 		},
-		"ifconfig": {
+		{
 			Datatype: "ifconfig",
 			Filename: "ifconfig.txt",
 			Cmd:      []string{"ifconfig", "-a"},
 		},
-	}
+	})
+	rtx.Must(err, "Could not serialize config")
 	defer func() {
 		revertOnce()
 		revertDatadir()
@@ -44,6 +46,7 @@ func TestMainOnce(t *testing.T) {
 		os.RemoveAll(dir)
 		cancel()
 		gatherers = og
+		config = oc
 	}()
 	*prometheusx.ListenAddress = ":0"
 
@@ -75,7 +78,19 @@ func TestMainMultiple(t *testing.T) {
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
 	*prometheusx.ListenAddress = ":0"
-	datatypes = flagx.StringArray{"uname", "bad datatype shouldn't crash things"}
+	config, err = json.Marshal([]data.Gatherer{
+		{
+			Datatype: "uname",
+			Filename: "uname.txt",
+			Cmd:      []string{"uname", "-a"},
+		},
+		{
+			Datatype: "ifconfig",
+			Filename: "ifconfig.txt",
+			Cmd:      []string{"ifconfig", "-a"},
+		},
+	})
+	rtx.Must(err, "Could not serialize config")
 
 	// Run main but sleep for .5s to guarantee that the timer will go off on its
 	// own multiple times.

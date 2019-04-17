@@ -8,12 +8,8 @@ RUN go get \
     ./...
 
 FROM alpine:3.7
+# Add all binaries that we may want to run that are not in alpine by default.
 RUN apk add --no-cache lshw
 COPY --from=build /go/bin/nodeinfo /
 WORKDIR /
-# Run things once to verify that every command invoked can be invoked inside the container.
-RUN mkdir smoketest && /nodeinfo -smoketest -datadir smoketest && rm -Rf /smoketest
-# Remove the created directory to allow it to be a mountpoint when deployed.
-RUN rm -Rf /var/spool/nodeinfo
-# If we made it here, then everything works!
 ENTRYPOINT ["/nodeinfo"]
