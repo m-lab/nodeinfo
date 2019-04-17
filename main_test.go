@@ -1,59 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/m-lab/go/prometheusx"
-	"github.com/m-lab/nodeinfo/data"
 
-	"github.com/m-lab/go/osx"
 	"github.com/m-lab/go/rtx"
 )
 
-func TestMainOnce(t *testing.T) {
-	// Set things up
-	ctx, cancel = context.WithCancel(context.Background())
-	dir, err := ioutil.TempDir("", "TestMain")
-	rtx.Must(err, "Could not create tempdir")
-	revertDatadir := osx.MustSetenv("DATADIR", dir)
-	revertOnce := osx.MustSetenv("ONCE", "true")
-	revertSmoketest := osx.MustSetenv("SMOKETEST", "true")
-	og := gatherers
-	oc := config
-	config, err = json.Marshal([]data.Gatherer{
-		{
-			Datatype: "uname",
-			Filename: "uname.txt",
-			Cmd:      []string{"uname", "-a"},
-		},
-		{
-			Datatype: "ifconfig",
-			Filename: "ifconfig.txt",
-			Cmd:      []string{"ifconfig", "-a"},
-		},
-	})
-	rtx.Must(err, "Could not serialize config")
-	defer func() {
-		revertOnce()
-		revertDatadir()
-		revertSmoketest()
-		os.RemoveAll(dir)
-		cancel()
-		gatherers = og
-		config = oc
-	}()
-	*prometheusx.ListenAddress = ":0"
-
-	// Run main.
-	main()
-
-	// Verify that some files were created.
+func countFiles(dir string) int {
 	filecount := 0
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -61,15 +24,47 @@ func TestMainOnce(t *testing.T) {
 		}
 		return nil
 	})
+	return filecount
+}
+
+func TestMainOnce(t *testing.T) {
+	// Set things up
+	ctx, cancel = context.WithCancel(context.Background())
+
+	dir, err := ioutil.TempDir("", "TestMainData")
+	rtx.Must(err, "Could not create temp data dir")
+	defer os.RemoveAll(dir)
+
+	configDir, err := ioutil.TempDir("", "TestMainConfig")
+	rtx.Must(err, "Could not create temp config dir")
+	defer os.RemoveAll(configDir)
+
+	config := `[{"Datatype": "uname", "Filename": "uname.txt", "Cmd": ["uname", "-a"]}]`
+	rtx.Must(ioutil.WriteFile(configDir+"/config.json", []byte(config), 0666), "Could not write config")
+
+	*datadir = dir
+	*configFile = configDir + "/config.json"
+	*once = true
+	*smoketest = true
+	*prometheusx.ListenAddress = ":0"
+	*reloadAddr = ":0"
+
+	// Run main.
+	main()
+
+	// Verify that some files were created inside uname.
+	filecount := countFiles(dir + "/uname")
 	if filecount == 0 {
 		t.Errorf("No files were produced when we ran main.")
 	}
 }
 
-func TestMainMultiple(t *testing.T) {
+func TestMainMultipleAndReload(t *testing.T) {
 	// Set things up
 	ctx, cancel = context.WithCancel(context.Background())
-	dir, err := ioutil.TempDir("", "TestMain")
+	defer cancel()
+
+	dir, err := ioutil.TempDir("", "TestMainMultiple")
 	rtx.Must(err, "Could not create tempdir")
 	defer os.RemoveAll(dir)
 
@@ -78,40 +73,67 @@ func TestMainMultiple(t *testing.T) {
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
 	*prometheusx.ListenAddress = ":0"
-	config, err = json.Marshal([]data.Gatherer{
+	*reloadAddr = "127.0.0.1:12345"
+	*configFile = dir + "/config.json"
+	config := `[
 		{
-			Datatype: "uname",
-			Filename: "uname.txt",
-			Cmd:      []string{"uname", "-a"},
+			"Datatype": "uname",
+			"Filename": "uname.txt",
+			"Cmd":      ["uname", "-a"]
 		},
 		{
-			Datatype: "ifconfig",
-			Filename: "ifconfig.txt",
-			Cmd:      []string{"ifconfig", "-a"},
-		},
-	})
-	rtx.Must(err, "Could not serialize config")
+			"Datatype": "ifconfig",
+			"Filename": "ifconfig.txt",
+			"Cmd":      ["ifconfig", "-a"]
+		}
+	]
+	`
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(config), 0666), "Could not write config")
+	rtx.Must(err, "Could not write config")
 
 	// Run main but sleep for .5s to guarantee that the timer will go off on its
 	// own multiple times.
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		time.Sleep(500 * time.Millisecond)
-		cancel()
+		main()
+		wg.Done()
 	}()
-	main()
 
-	// Verify that some files were created.
-	filecount := 0
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			filecount++
-		}
-		return nil
-	})
-	// The timer going off multiple times should produce multiple files. Thanks to
-	// randomness, we don't know exactly how many times, but it should definitely
-	// be more than once.
+	time.Sleep(500 * time.Millisecond)
+	filecount := countFiles(dir + "/uname")
 	if filecount <= 1 {
 		t.Errorf("Not enough files were produced when we ran main.")
 	}
+	filecount = countFiles(dir + "/ifconfig")
+	if filecount <= 1 {
+		t.Errorf("Not enough files were produced when we ran main.")
+	}
+
+	newConfig := `[
+		{
+			"Datatype": "ls",
+			"Filename": "ls.txt",
+			"Cmd":      ["ls"]
+		}
+	]
+	`
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(newConfig), 0666), "Could not write newConfig")
+	resp, err := http.Get("http://127.0.0.1:12345/-/reload")
+	if err == nil && resp.StatusCode == 200 {
+		t.Error("We should not be able to GET that url")
+	}
+	resp, err = http.Post("http://127.0.0.1:12345/-/reload", "application/json", &bytes.Buffer{})
+	if err != nil || resp.StatusCode != 200 {
+		t.Error("We should have been able to POST to that url")
+	}
+	rtx.Must(err, "Could not reload the config")
+	time.Sleep(500 * time.Millisecond)
+	filecount = countFiles(dir + "/ls")
+	if filecount <= 1 {
+		t.Errorf("Not enough files were produced when we ran main.")
+	}
+
+	cancel()
+	wg.Wait()
 }

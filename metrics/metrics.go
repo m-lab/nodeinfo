@@ -30,6 +30,18 @@ var (
 		},
 		[]string{"datatype"},
 	)
+	ConfigLoadTime = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "config_load_timestamp",
+			Help: "The timestamp of the time the config was loaded from disk",
+		},
+	)
+	ConfigLoadCount = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "config_loads_total",
+			Help: "The number of times the config has been reloaded",
+		},
+	)
 )
 
 func init() {
