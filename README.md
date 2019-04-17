@@ -18,7 +18,7 @@ As simple as possible. This system is called `nodeinfo`. Every command produces 
 
 This program calls a series of other programs, and directs the output of each call to the appropriate output file. The set of programs to call is currently hard-coded in the binary. If any of the commands run unsuccessfully, this crashes.  Every command is rerun every hour on average, with some randomness. The inter-run times are drawn from the exponential distribution to try and make sure the resulting series of measurements has the [PASTA property](https://en.wikipedia.org/wiki/Arrival_theorem).
 
-## suggested config
+## example config file
 
 ```json
 [
