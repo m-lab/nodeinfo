@@ -25,52 +25,52 @@ This program calls a series of other programs, and directs the output of each ca
   {
     "Dataype": "lshw",
     "Filename": "lshw.json",
-    "Cmd":      []string{"lshw", "-json"},
+    "Cmd":      ["lshw", "-json"]
   },
   {
     "Dataype": "lspci",
     "Filename": "lspci.txt",
-    "Cmd":      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
+    "Cmd":      ["lspci", "-mm", "-vv", "-k", "-nn"]
   },
   {
     "Dataype": "lsusb",
     "Filename": "lsusb.txt",
-    "Cmd":      []string{"lsusb", "-v"},
+    "Cmd":      ["lsusb", "-v"]
   },
   {
     "Dataype": "ip-address",
     "Filename": "ip-address.txt",
-    "Cmd":      []string{"ip", "address", "show"},
+    "Cmd":      ["ip", "address", "show"]
   },
   {
     "Dataype": "ip-route-4",
     "Filename": "ip-route-4.txt",
-    "Cmd":      []string{"ip", "-4", "route", "show"},
+    "Cmd":      ["ip", "-4", "route", "show"]
   },
   {
     "Dataype": "ip-route-6",
     "Filename": "ip-route-6.txt",
-    "Cmd":      []string{"ip", "-6", "route", "show"},
+    "Cmd":      ["ip", "-6", "route", "show"]
   },
   {
     "Dataype": "uname",
     "Filename": "uname.txt",
-    "Cmd":      []string{"uname", "-a"},
+    "Cmd":      ["uname", "-a"]
   },
   {
     "Dataype": "os-release",
     "Filename": "os-release.txt",
-    "Cmd":      []string{"cat", "/etc/os-release"},
+    "Cmd":      ["cat", "/etc/os-release"]
   },
   {
     "Dataype": "bios_version",
     "Filename": "bios_version.txt",
-    "Cmd":      []string{"cat", "/sys/class/dmi/id/bios_version"},
+    "Cmd":      ["cat", "/sys/class/dmi/id/bios_version"]
   },
   {
     "Dataype": "chassis_serial",
     "Filename": "chassis_serial.txt",
-    "Cmd":      []string{"cat", "/sys/class/dmi/id/chassis_serial"},
-  },
+    "Cmd":      ["cat", "/sys/class/dmi/id/chassis_serial"]
+  }
 ]
 ```
