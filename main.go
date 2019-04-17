@@ -8,9 +8,9 @@
 // nodeinfo reads the list of commands and datatypes in from a config file and
 // then opens a webserver on the port specified in the -reload-address argument.
 // If the config file changes, you can cause nodeinfo to reload the config by
-// sending an HTTP POST to the '/-/reload' url being served at that address. You
-// SHOULD NOT expose the reload-address to the world. This pattern allows us to
-// reload the config whenever the configmap changes using the
+// sending an HTTP POST to the '/-/reload' url being served from that address.
+// You SHOULD NOT expose the reload-address to the world. This pattern allows us
+// to reload the config whenever the configmap changes using the
 // jimmidyson/configmap-reload:v0.2.2 image.
 package main
 
