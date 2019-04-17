@@ -21,17 +21,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/m-lab/go/httpx"
-
-	"github.com/m-lab/go/prometheusx"
-	"github.com/m-lab/nodeinfo/gatherers"
-
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/nodeinfo/gatherers"
 )
 
+// Command-line flags
 var (
+	// Exposing the reload-address to the outside world is contrary to best practices, so we make the default be local-only.
 	reloadAddr  = flag.String("reload-address", "127.0.0.1:9989", "The address to which we should bind the server which serves the reload URL.")
 	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
 	once        = flag.Bool("once", false, "Only gather data once")

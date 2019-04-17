@@ -13,6 +13,8 @@ import (
 // Config contains the configuration of nodeinfo that is stored in a separate
 // config file. It is broken out into a threadsafe object here to enable safe
 // reloads of the configmap.
+//
+// Implementations of this interface should be designed to be threadsafe.
 type Config interface {
 	MustReloadConfig()
 	Gatherers() []data.Gatherer
