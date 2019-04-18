@@ -3,113 +3,70 @@
 // small files, each with the output of "ifconfig" or "lshw" or another command
 // like that. The hope is that by doing this, we will be able to track over
 // time what hardware was installed, what software versions were running, and
-// how the network was configured on every node in the M-Lab fleet.  Every time
-// we turn out to need a new small diagnostic command, that command should be
-// added to the list and a new image pushed.
+// how the network was configured on every node in the M-Lab fleet.
+//
+// nodeinfo reads the list of commands and datatypes in from a config file. It
+// rereads the config file every time it runs, to allow that file to be deployed
+// as a ConfigMap in kubernetes.
 package main
 
 import (
 	"context"
 	"flag"
 	"log"
-	"strings"
 	"time"
-
-	"github.com/m-lab/go/prometheusx"
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/memoryless"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
-
-	"github.com/m-lab/nodeinfo/data"
+	"github.com/m-lab/nodeinfo/config"
+	"github.com/m-lab/nodeinfo/metrics"
 )
 
+// Command-line flags
 var (
-	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
-	once        = flag.Bool("once", false, "Only gather data once")
-	smoketest   = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all data types can be gathered.")
-	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
-	datatypes   = flagx.StringArray{}
-	ctx, cancel = context.WithCancel(context.Background())
+	datadir    = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once       = flag.Bool("once", false, "Only gather data once")
+	smoketest  = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all configured data types can be gathered.")
+	waittime   = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
+	configFile = flag.String("config", "/etc/nodeinfo/config.json", "The name of the config file to load from disk.")
 
-	gatherers = map[string]data.Gatherer{
-		"lshw": {
-			Datatype: "lshw",
-			Filename: "lshw.json",
-			Cmd:      []string{"lshw", "-json"},
-		},
-		"lspci": {
-			Datatype: "lspci",
-			Filename: "lspci.txt",
-			Cmd:      []string{"lspci", "-mm", "-vv", "-k", "-nn"},
-		},
-		"lsusb": {
-			Datatype: "lsusb",
-			Filename: "lsusb.txt",
-			Cmd:      []string{"lsusb", "-v"},
-		},
-		"ifconfig": {
-			Datatype: "ifconfig",
-			Filename: "ifconfig.txt",
-			Cmd:      []string{"ifconfig", "-a"},
-		},
-		"route-v4": {
-			Datatype: "route",
-			Filename: "route-ipv4.txt",
-			Cmd:      []string{"route", "-n", "-A", "inet"},
-		},
-		"route-v6": {
-			Datatype: "route",
-			Filename: "route-ipv6.txt",
-			Cmd:      []string{"route", "-n", "-A", "inet6"},
-		},
-		"uname": {
-			Datatype: "uname",
-			Filename: "uname.txt",
-			Cmd:      []string{"uname", "-a"},
-		},
-	}
+	// A context and associate cancellation function which, when called, should cause main to exit.
+	mainCtx, mainCancel = context.WithCancel(context.Background())
+
+	// Contents of this should be filled in as part of parsing commandline flags.
+	gatherers config.Config
 )
-
-func possibleTypes() []string {
-	datatypes := []string{}
-	for datatype := range gatherers {
-		datatypes = append(datatypes, datatype)
-	}
-	return datatypes
-}
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.LUTC | log.LstdFlags)
-
-	flag.Var(&datatypes, "datatype", "What datatype should be collected. This flag can be used multiple times.  The set of possible datatypes is: {"+strings.Join(possibleTypes(), ", ")+"}")
 }
 
 // Runs every data gatherer.
 func gather() {
+	err := gatherers.Reload()
+	if err != nil {
+		metrics.ConfigLoadFailures.Inc()
+		log.Println("Could not reload the config. Using old config.")
+	}
 	t := time.Now()
-	for _, datatype := range datatypes {
-		g, ok := gatherers[datatype]
-		if ok {
-			g.Gather(t, *datadir, *smoketest)
-		} else {
-			log.Println("Unknown datatype:", datatype)
-		}
+	for _, g := range gatherers.Gatherers() {
+		g.Gather(t, *datadir, *smoketest)
 	}
 }
 
 func main() {
 	flag.Parse()
-	flagx.ArgsFromEnv(flag.CommandLine)
-	if *smoketest {
-		*once = true
-		datatypes = possibleTypes()
-	}
+	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse args from environment")
 
-	srv := prometheusx.MustServeMetrics()
-	defer srv.Close()
+	metricSrv := prometheusx.MustServeMetrics()
+	defer metricSrv.Shutdown(mainCtx)
 
+	var err error
+	gatherers, err = config.Create(*configFile)
+	rtx.Must(err, "Could not read config on the first try. Shutting down.")
 	rtx.Must(
-		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once}),
+		memoryless.Run(mainCtx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
 		"Bad time arguments.")
 }
