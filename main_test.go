@@ -17,6 +17,9 @@ import (
 func countFiles(dir string) int {
 	filecount := 0
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info == nil {
+			return nil
+		}
 		if !info.IsDir() {
 			filecount++
 		}
@@ -26,7 +29,7 @@ func countFiles(dir string) int {
 }
 
 func TestMainOnce(t *testing.T) {
-	// Set things up
+	// Reset global variables into a known-good start state.
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 	defer mainCancel()
 
@@ -58,7 +61,7 @@ func TestMainOnce(t *testing.T) {
 }
 
 func TestMainMultipleAndReload(t *testing.T) {
-	// Set things up
+	// Reset global variables into a known-good start state.
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 	defer mainCancel()
 
@@ -97,14 +100,15 @@ func TestMainMultipleAndReload(t *testing.T) {
 		wg.Done()
 	}()
 
-	time.Sleep(500 * time.Millisecond)
-	filecount := countFiles(dir + "/uname")
-	if filecount <= 1 {
-		t.Errorf("Not enough files were produced when we ran main.")
+	start := time.Now()
+	unameokay := false
+	ifconfigokay := false
+	for time.Now().Sub(start) < time.Second && !(unameokay && ifconfigokay) {
+		unameokay = countFiles(dir+"/uname") > 1
+		ifconfigokay = countFiles(dir+"/ifconfig") > 1
 	}
-	filecount = countFiles(dir + "/ifconfig")
-	if filecount <= 1 {
-		t.Errorf("Not enough files were produced when we ran main.")
+	if !ifconfigokay || !unameokay {
+		t.Error("Not enough output was produced in a second")
 	}
 
 	newConfig := `[
@@ -117,8 +121,12 @@ func TestMainMultipleAndReload(t *testing.T) {
 	`
 	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(newConfig), 0666), "Could not write newConfig")
 	time.Sleep(500 * time.Millisecond)
-	filecount = countFiles(dir + "/ls")
-	if filecount <= 1 {
+	start = time.Now()
+	lsokay := false
+	for time.Now().Sub(start) < time.Second && !lsokay {
+		lsokay = countFiles(dir+"/ls") > 1
+	}
+	if !lsokay {
 		t.Errorf("Not enough files were produced when we ran main.")
 	}
 
