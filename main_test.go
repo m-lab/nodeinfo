@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -29,7 +27,8 @@ func countFiles(dir string) int {
 
 func TestMainOnce(t *testing.T) {
 	// Set things up
-	ctx, cancel = context.WithCancel(context.Background())
+	mainCtx, mainCancel = context.WithCancel(context.Background())
+	defer mainCancel()
 
 	dir, err := ioutil.TempDir("", "TestMainData")
 	rtx.Must(err, "Could not create temp data dir")
@@ -47,7 +46,6 @@ func TestMainOnce(t *testing.T) {
 	*once = true
 	*smoketest = true
 	*prometheusx.ListenAddress = ":0"
-	*reloadAddr = ":0"
 
 	// Run main.
 	main()
@@ -61,8 +59,8 @@ func TestMainOnce(t *testing.T) {
 
 func TestMainMultipleAndReload(t *testing.T) {
 	// Set things up
-	ctx, cancel = context.WithCancel(context.Background())
-	defer cancel()
+	mainCtx, mainCancel = context.WithCancel(context.Background())
+	defer mainCancel()
 
 	dir, err := ioutil.TempDir("", "TestMainMultiple")
 	rtx.Must(err, "Could not create tempdir")
@@ -73,7 +71,6 @@ func TestMainMultipleAndReload(t *testing.T) {
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
 	*prometheusx.ListenAddress = ":0"
-	*reloadAddr = "127.0.0.1:12345"
 	*configFile = dir + "/config.json"
 	config := `[
 		{
@@ -119,21 +116,16 @@ func TestMainMultipleAndReload(t *testing.T) {
 	]
 	`
 	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(newConfig), 0666), "Could not write newConfig")
-	resp, err := http.Get("http://127.0.0.1:12345/-/reload")
-	if err == nil && resp.StatusCode == 200 {
-		t.Error("We should not be able to GET that url")
-	}
-	resp, err = http.Post("http://127.0.0.1:12345/-/reload", "application/json", &bytes.Buffer{})
-	if err != nil || resp.StatusCode != 200 {
-		t.Error("We should have been able to POST to that url")
-	}
-	rtx.Must(err, "Could not reload the config")
 	time.Sleep(500 * time.Millisecond)
 	filecount = countFiles(dir + "/ls")
 	if filecount <= 1 {
 		t.Errorf("Not enough files were produced when we ran main.")
 	}
 
-	cancel()
+	os.Remove(dir + "/config.json")
+	time.Sleep(100 * time.Millisecond)
+	// Make sure that the file disappearing does not cause a crash.
+
+	mainCancel()
 	wg.Wait()
 }

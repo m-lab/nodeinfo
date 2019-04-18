@@ -1,4 +1,4 @@
-package gatherers_test
+package config_test
 
 import (
 	"io/ioutil"
@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/m-lab/nodeinfo/config"
 	"github.com/m-lab/nodeinfo/data"
-	"github.com/m-lab/nodeinfo/gatherers"
 
 	"github.com/m-lab/go/rtx"
 )
@@ -35,7 +35,8 @@ func TestConfigCreationAndReload(t *testing.T) {
 		{Datatype: "ifconfig", Filename: "ifconfig.txt", Cmd: []string{"ifconfig"}},
 	}
 	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents), 0666), "Could not write config")
-	c := gatherers.MustCreate(dir + "/config.json")
+	c, err := config.Create(dir + "/config.json")
+	rtx.Must(err, "Could not read config.json")
 	g := c.Gatherers()
 	if !reflect.DeepEqual(g, expected) {
 		t.Errorf("%v != %v", g, expected)
@@ -53,9 +54,24 @@ func TestConfigCreationAndReload(t *testing.T) {
 		{Datatype: "ls", Filename: "ls.txt", Cmd: []string{"ls", "-l"}},
 	}
 	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents2), 0666), "Could not write replacement config")
-	c.MustReloadConfig()
+	rtx.Must(c.Reload(), "Could not reload config")
 	g = c.Gatherers()
 	if !reflect.DeepEqual(g, expected2) {
 		t.Errorf("%v != %v", g, expected2)
+	}
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte("bad content"), 0666), "Could not write replacement config")
+	if c.Reload() == nil {
+		t.Error("We should not have been able to reload the config")
+	}
+	g = c.Gatherers()
+	if !reflect.DeepEqual(g, expected2) {
+		t.Errorf("%v != %v", g, expected2)
+	}
+}
+
+func TestConfigOnBadFile(t *testing.T) {
+	_, err := config.Create("/this/file/does/not/exist")
+	if err == nil {
+		t.Error("This should not have succeeded")
 	}
 }

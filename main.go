@@ -18,30 +18,29 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/m-lab/go/flagx"
-	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
-	"github.com/m-lab/nodeinfo/gatherers"
+	"github.com/m-lab/nodeinfo/config"
+	"github.com/m-lab/nodeinfo/metrics"
 )
 
 // Command-line flags
 var (
-	// Exposing the reload-address to the outside world is contrary to best practices, so we make the default be local-only.
-	reloadAddr  = flag.String("reload-address", "127.0.0.1:9989", "The address to which we should bind the server which serves the reload URL.")
-	datadir     = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
-	once        = flag.Bool("once", false, "Only gather data once")
-	smoketest   = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all configured data types can be gathered.")
-	waittime    = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
-	configFile  = flag.String("config", "/etc/nodeinfo/config.json", "The name of the config file to load from disk.")
-	ctx, cancel = context.WithCancel(context.Background())
+	datadir    = flag.String("datadir", "/var/spool/nodeinfo", "The root directory in which to put all produced data")
+	once       = flag.Bool("once", false, "Only gather data once")
+	smoketest  = flag.Bool("smoketest", false, "Gather every type of data once. Used to test that all configured data types can be gathered.")
+	waittime   = flag.Duration("wait", 1*time.Hour, "How long (in expectation) to wait between runs")
+	configFile = flag.String("config", "/etc/nodeinfo/config.json", "The name of the config file to load from disk.")
+
+	// A context and associate cancellation function which, when called, should cause main to exit.
+	mainCtx, mainCancel = context.WithCancel(context.Background())
 
 	// Contents of this should be filled in as part of parsing commandline flags.
-	config gatherers.Config
+	gatherers config.Config
 )
 
 func init() {
@@ -50,42 +49,31 @@ func init() {
 
 // Runs every data gatherer.
 func gather() {
+	err := gatherers.Reload()
+	if err != nil {
+		metrics.ConfigLoadFailures.Inc()
+		log.Println("Could not reload the config. Using old config.")
+	}
 	t := time.Now()
-	for _, g := range config.Gatherers() {
+	for _, g := range gatherers.Gatherers() {
 		g.Gather(t, *datadir, *smoketest)
 	}
-}
-
-func reloadConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(405)
-		return
-	}
-	config.MustReloadConfig()
-	w.WriteHeader(200)
 }
 
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse args from environment")
 
-	defer cancel()
+	// When main exits, all goroutines should terminate.  This ensures that will happen.
+	defer mainCancel()
 
 	metricSrv := prometheusx.MustServeMetrics()
-	defer metricSrv.Shutdown(ctx)
+	defer metricSrv.Shutdown(mainCtx)
 
-	reloadHandler := http.NewServeMux()
-	reloadHandler.HandleFunc("/-/reload", reloadConfig)
-	reloadSrv := &http.Server{
-		Handler: reloadHandler,
-		Addr:    *reloadAddr,
-	}
-	httpx.ListenAndServeAsync(reloadSrv)
-	defer reloadSrv.Shutdown(ctx)
-
-	config = gatherers.MustCreate(*configFile)
-
+	var err error
+	gatherers, err = config.Create(*configFile)
+	rtx.Must(err, "Could not read config on the first try. Shutting down.")
 	rtx.Must(
-		memoryless.Run(ctx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
+		memoryless.Run(mainCtx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
 		"Bad time arguments.")
 }

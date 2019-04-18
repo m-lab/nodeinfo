@@ -42,6 +42,12 @@ var (
 			Help: "The number of times the config has been reloaded",
 		},
 	)
+	ConfigLoadFailures = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "config_load_failures_total",
+			Help: "The number of times the config has not been reloaded, even after reload was requested",
+		},
+	)
 )
 
 func init() {
