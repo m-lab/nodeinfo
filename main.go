@@ -5,13 +5,9 @@
 // time what hardware was installed, what software versions were running, and
 // how the network was configured on every node in the M-Lab fleet.
 //
-// nodeinfo reads the list of commands and datatypes in from a config file and
-// then opens a webserver on the port specified in the -reload-address argument.
-// If the config file changes, you can cause nodeinfo to reload the config by
-// sending an HTTP POST to the '/-/reload' url being served from that address.
-// You SHOULD NOT expose the reload-address to the world. This pattern allows us
-// to reload the config whenever the configmap changes using the
-// jimmidyson/configmap-reload:v0.2.2 image.
+// nodeinfo reads the list of commands and datatypes in from a config file. It
+// rereads the config file every time it runs, to allow that file to be deployed
+// as a ConfigMap in kubernetes.
 package main
 
 import (
@@ -63,9 +59,6 @@ func gather() {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse args from environment")
-
-	// When main exits, all goroutines should terminate.  This ensures that will happen.
-	defer mainCancel()
 
 	metricSrv := prometheusx.MustServeMetrics()
 	defer metricSrv.Shutdown(mainCtx)
