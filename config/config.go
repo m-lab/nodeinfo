@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 
@@ -41,13 +42,19 @@ func (c *fileconfig) Reload() error {
 		log.Println("Could not read file")
 		return err
 	}
-	var g []data.Gatherer
-	err = json.Unmarshal(contents, &g)
+	var newGatherers []data.Gatherer
+	err = json.Unmarshal(contents, &newGatherers)
 	if err != nil {
 		log.Printf("Could not parse %q", c.filename)
 		return err
 	}
-	c.gatherers = g
+	for _, g := range newGatherers {
+		if len(g.Cmd) == 0 || g.Datatype == "" || g.Filename == "" {
+			log.Printf("%v is not a valid gatherer", g)
+			return fmt.Errorf("%v is not a valid gatherer", g)
+		}
+	}
+	c.gatherers = newGatherers
 	metrics.ConfigLoadTime.SetToCurrentTime()
 	return nil
 }
