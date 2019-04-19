@@ -14,12 +14,14 @@ import (
 	"context"
 	"flag"
 	"log"
+	"path"
 	"time"
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/go/uniformnames"
 	"github.com/m-lab/nodeinfo/config"
 	"github.com/m-lab/nodeinfo/metrics"
 )
@@ -59,6 +61,8 @@ func gather() {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse args from environment")
+
+	rtx.Must(uniformnames.Check(path.Base(*datadir)), "The destination directory does not conform to the M-Lab uniform naming conventions")
 
 	metricSrv := prometheusx.MustServeMetrics()
 	defer metricSrv.Shutdown(mainCtx)

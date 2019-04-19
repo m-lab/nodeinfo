@@ -33,19 +33,16 @@ func TestMainOnce(t *testing.T) {
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 	defer mainCancel()
 
-	dir, err := ioutil.TempDir("", "TestMainData")
+	dir, err := ioutil.TempDir("", "TestMainOnce")
 	rtx.Must(err, "Could not create temp data dir")
 	defer os.RemoveAll(dir)
-
-	configDir, err := ioutil.TempDir("", "TestMainConfig")
-	rtx.Must(err, "Could not create temp config dir")
-	defer os.RemoveAll(configDir)
+	rtx.Must(os.MkdirAll(dir+"/data", 0777), "Could not create data subdir")
 
 	config := `[{"Datatype": "uname", "Filename": "uname.txt", "Cmd": ["uname", "-a"]}]`
-	rtx.Must(ioutil.WriteFile(configDir+"/config.json", []byte(config), 0666), "Could not write config")
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(config), 0666), "Could not write config")
 
-	*datadir = dir
-	*configFile = configDir + "/config.json"
+	*datadir = dir + "/data"
+	*configFile = dir + "/config.json"
 	*once = true
 	*smoketest = true
 	*prometheusx.ListenAddress = ":0"
@@ -54,7 +51,7 @@ func TestMainOnce(t *testing.T) {
 	main()
 
 	// Verify that some files were created inside uname.
-	filecount := countFiles(dir + "/uname")
+	filecount := countFiles(dir + "/data/uname")
 	if filecount == 0 {
 		t.Errorf("No files were produced when we ran main.")
 	}
@@ -68,8 +65,9 @@ func TestMainMultipleAndReload(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestMainMultiple")
 	rtx.Must(err, "Could not create tempdir")
 	defer os.RemoveAll(dir)
+	rtx.Must(os.MkdirAll(dir+"/data", 0777), "Could not create data subdir")
 
-	*datadir = dir
+	*datadir = dir + "/data"
 	*once = false
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
@@ -104,8 +102,8 @@ func TestMainMultipleAndReload(t *testing.T) {
 	unameokay := false
 	ifconfigokay := false
 	for time.Now().Sub(start) < time.Second && !(unameokay && ifconfigokay) {
-		unameokay = countFiles(dir+"/uname") > 1
-		ifconfigokay = countFiles(dir+"/ifconfig") > 1
+		unameokay = countFiles(dir+"/data/uname") > 1
+		ifconfigokay = countFiles(dir+"/data/ifconfig") > 1
 	}
 	if !ifconfigokay || !unameokay {
 		t.Error("Not enough output was produced in a second")
@@ -124,10 +122,10 @@ func TestMainMultipleAndReload(t *testing.T) {
 	start = time.Now()
 	lsokay := false
 	for time.Now().Sub(start) < time.Second && !lsokay {
-		lsokay = countFiles(dir+"/ls") > 1
+		lsokay = countFiles(dir+"/data/ls") > 1
 	}
 	if !lsokay {
-		t.Errorf("Not enough files were produced when we ran main.")
+		t.Errorf("Not enough files were produced with the ls config.")
 	}
 
 	os.Remove(dir + "/config.json")
