@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 
@@ -33,7 +34,9 @@ type fileconfig struct {
 }
 
 // Reload the list of gatherers from the original config filename. Returns a
-// non-nil error if unsuccessful.
+// non-nil error if unsuccessful. The config must be well-formed - either the
+// whole file is readable and parseable, or the reload will not be successful
+// and the list will not be updated.
 func (c *fileconfig) Reload() error {
 	metrics.ConfigLoadCount.Inc()
 	contents, err := ioutil.ReadFile(c.filename)
@@ -41,13 +44,19 @@ func (c *fileconfig) Reload() error {
 		log.Println("Could not read file")
 		return err
 	}
-	var g []data.Gatherer
-	err = json.Unmarshal(contents, &g)
+	var newGatherers []data.Gatherer
+	err = json.Unmarshal(contents, &newGatherers)
 	if err != nil {
 		log.Printf("Could not parse %q", c.filename)
 		return err
 	}
-	c.gatherers = g
+	for _, g := range newGatherers {
+		if len(g.Cmd) == 0 || g.Datatype == "" || g.Filename == "" {
+			log.Printf("%#v is not a valid gatherer", g)
+			return fmt.Errorf("%#v is not a valid gatherer", g)
+		}
+	}
+	c.gatherers = newGatherers
 	metrics.ConfigLoadTime.SetToCurrentTime()
 	return nil
 }

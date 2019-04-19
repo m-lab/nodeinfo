@@ -67,6 +67,42 @@ func TestConfigCreationAndReload(t *testing.T) {
 	if !reflect.DeepEqual(g, expected2) {
 		t.Errorf("%v != %v", g, expected2)
 	}
+
+	incompleteFileContents := []string{
+		// Dataype is not Datatype
+		`[
+			{
+				"Dataype": "ls",
+				"Filename": "ls.txt",
+				"Cmd": ["ls", "-l"]
+			}
+		]
+		`,
+		// Filenam is not Filename
+		`[
+			{
+				"Datatype": "ls",
+				"Filenam": "ls.txt",
+				"Cmd": ["ls", "-l"]
+			}
+		]
+		`,
+		// Cmb is not Cmd
+		`[
+			{
+				"Datatype": "ls",
+				"Filename": "ls.txt",
+				"Cmb": ["ls", "-l"]
+			}
+		]
+		`,
+	}
+	for _, inc := range incompleteFileContents {
+		rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(inc), 0666), "Could not write replacement config")
+		if c.Reload() == nil {
+			t.Error("We should not have been able to reload the config")
+		}
+	}
 }
 
 func TestConfigOnBadFile(t *testing.T) {
