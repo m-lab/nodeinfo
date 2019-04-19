@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/m-lab/go/uniformnames"
+
 	"github.com/m-lab/nodeinfo/data"
 	"github.com/m-lab/nodeinfo/metrics"
 )
@@ -54,6 +56,9 @@ func (c *fileconfig) Reload() error {
 		if len(g.Cmd) == 0 || g.Datatype == "" || g.Filename == "" {
 			log.Printf("%#v is not a valid gatherer", g)
 			return fmt.Errorf("%#v is not a valid gatherer", g)
+		}
+		if err := uniformnames.Check(g.Datatype); err != nil {
+			return err
 		}
 	}
 	c.gatherers = newGatherers

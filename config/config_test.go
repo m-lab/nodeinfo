@@ -96,6 +96,15 @@ func TestConfigCreationAndReload(t *testing.T) {
 			}
 		]
 		`,
+		// Datatype does not conform to the uniform naming conventions.
+		`[
+			{
+				"Datatype": "ls-a-lot",
+				"Filename": "ls.txt",
+				"Cmd": ["ls", "-l"]
+			}
+		]
+		`,
 	}
 	for _, inc := range incompleteFileContents {
 		rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(inc), 0666), "Could not write replacement config")
