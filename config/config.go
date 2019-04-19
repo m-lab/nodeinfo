@@ -50,8 +50,8 @@ func (c *fileconfig) Reload() error {
 	}
 	for _, g := range newGatherers {
 		if len(g.Cmd) == 0 || g.Datatype == "" || g.Filename == "" {
-			log.Printf("%v is not a valid gatherer", g)
-			return fmt.Errorf("%v is not a valid gatherer", g)
+			log.Printf("%#v is not a valid gatherer", g)
+			return fmt.Errorf("%#v is not a valid gatherer", g)
 		}
 	}
 	c.gatherers = newGatherers
