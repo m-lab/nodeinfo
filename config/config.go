@@ -34,7 +34,9 @@ type fileconfig struct {
 }
 
 // Reload the list of gatherers from the original config filename. Returns a
-// non-nil error if unsuccessful.
+// non-nil error if unsuccessful. The config must be well-formed - either the
+// whole file is readable and parseable, or the reload will not be successful
+// and the list will not be updated.
 func (c *fileconfig) Reload() error {
 	metrics.ConfigLoadCount.Inc()
 	contents, err := ioutil.ReadFile(c.filename)

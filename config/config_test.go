@@ -69,6 +69,7 @@ func TestConfigCreationAndReload(t *testing.T) {
 	}
 
 	incompleteFileContents := []string{
+		// Dataype is not Datatype
 		`[
 			{
 				"Dataype": "ls",
@@ -77,6 +78,7 @@ func TestConfigCreationAndReload(t *testing.T) {
 			}
 		]
 		`,
+		// Filenam is not Filename
 		`[
 			{
 				"Datatype": "ls",
@@ -85,6 +87,7 @@ func TestConfigCreationAndReload(t *testing.T) {
 			}
 		]
 		`,
+		// Cmb is not Cmd
 		`[
 			{
 				"Datatype": "ls",
