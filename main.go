@@ -14,6 +14,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math/rand"
 	"path"
 	"time"
 
@@ -70,6 +71,7 @@ func main() {
 	var err error
 	gatherers, err = config.Create(*configFile)
 	rtx.Must(err, "Could not read config on the first try. Shutting down.")
+	rand.Seed(time.Now().UnixNano())
 	rtx.Must(
 		memoryless.Run(mainCtx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
 		"Bad time arguments.")
