@@ -1,7 +1,8 @@
-FROM golang:1.12 as build
+FROM golang:1.16 as build
 ENV CGO_ENABLED 0
 COPY . /go/src/github.com/m-lab/nodeinfo
 WORKDIR /go/src/github.com/m-lab/nodeinfo
+RUN apt update && apt reinstall ca-certificates
 RUN go get \
     -v \
     -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)" \
