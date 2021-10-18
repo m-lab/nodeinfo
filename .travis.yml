@@ -2,11 +2,8 @@ dist: focal
 
 language: go
 
-install:
-- sudo apt-get update
-- sudo apt-get install --reinstall ca-certificates
-
 before_script:
+- sudo apt update && sudo apt install --yes --reinstall ca-certificates
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
 
