@@ -45,6 +45,7 @@ func TestMainOnce(t *testing.T) {
 	*configFile = dir + "/config.json"
 	*once = true
 	*smoketest = true
+	*waittime = 3 * time.Second
 	*prometheusx.ListenAddress = ":0"
 
 	// Run main.
