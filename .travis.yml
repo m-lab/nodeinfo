@@ -1,5 +1,8 @@
 language: go
 
+install:
+- apt-get install --reinstall ca-certificates
+
 before_script:
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
