@@ -1,6 +1,5 @@
 FROM golang:1.16 as build
 ENV CGO_ENABLED 0
-ENV GO111MODULE=auto
 COPY . /go/src/github.com/m-lab/nodeinfo
 WORKDIR /go/src/github.com/m-lab/nodeinfo
 RUN apt update && apt reinstall ca-certificates
