@@ -14,6 +14,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math/rand"
 	"path"
 	"time"
 
@@ -70,6 +71,12 @@ func main() {
 	var err error
 	gatherers, err = config.Create(*configFile)
 	rtx.Must(err, "Could not read config on the first try. Shutting down.")
+	// Seeds math/rand with a unique seed. Without this, rand will return a
+	// predictable pattern of "random" numbers, causing the "memoryless" package
+	// to schedule runs of this package in an erratic way every time the
+	// nodeinfo container is restarted:
+	// https://github.com/m-lab/dev-tracker/issues/689
+	rand.Seed(time.Now().UnixNano())
 	rtx.Must(
 		memoryless.Run(mainCtx, gather, memoryless.Config{Expected: *waittime, Max: 4 * (*waittime), Once: *once || *smoketest}),
 		"Bad time arguments.")
