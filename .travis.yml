@@ -3,7 +3,7 @@ dist: focal
 language: go
 
 go:
-- 1.16
+- 1.18
 
 addons:
   apt:
@@ -11,8 +11,8 @@ addons:
     packages: ca-certificates
 
 before_script:
-- go get golang.org/x/tools/cmd/cover
-- go get github.com/mattn/goveralls
+- go install golang.org/x/tools/cmd/cover@latest
+- go install github.com/mattn/goveralls@latest
 
 script:
 - go test -v -covermode=count -coverprofile=__coverage.cov -coverpkg=./... ./...
