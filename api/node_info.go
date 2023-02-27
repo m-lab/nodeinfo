@@ -4,6 +4,7 @@ package api
 // CmdOut defines the executed command line (including all flags and
 // parameters) and the output it generated.
 type CmdOut struct {
+	Name        string
 	CommandLine string
 	Output      string
 }

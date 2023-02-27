@@ -1,3 +1,5 @@
+// Package metrics implements all monitoring-related Prometheus metrics
+// for this repo.
 package metrics
 
 import (
