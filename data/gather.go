@@ -45,15 +45,15 @@ func (g Gatherer) Gather(t time.Time, root string, crashOnError bool, nodeinfo *
 // gather runs the command. Gather sets up all monitoring, metrics, and
 // recovery code, and then gather() does the work.
 func (g Gatherer) gather(t time.Time, root string, nodeinfo *api.NodeInfoV1) {
-	co := api.CmdOut{
+	cmd := api.CmdOut{
 		Name:        g.Name,
 		CommandLine: strings.Join(g.Cmd, " "),
 	}
-	log.Printf("   %v\n", co.CommandLine)
+	log.Printf("   %v\n", cmd.CommandLine)
 	out, err := exec.Command(g.Cmd[0], g.Cmd[1:]...).Output()
 	if err != nil {
 		logFatalf("failed to run command (error: %v)", err)
 	}
-	co.Output = strings.TrimSuffix(string(out), "\n")
-	nodeinfo.CommandOutput = append(nodeinfo.CommandOutput, co)
+	cmd.Output = strings.TrimSuffix(string(out), "\n")
+	nodeinfo.Commands = append(nodeinfo.Commands, cmd)
 }

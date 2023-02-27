@@ -11,5 +11,5 @@ type CmdOut struct {
 
 // NodeInfoV1 defines the list of executed commands and their outputs.
 type NodeInfoV1 struct {
-	CommandOutput []CmdOut `json:"command_output"`
+	Commands []CmdOut `json:"commands"`
 }
