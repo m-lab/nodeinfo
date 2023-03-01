@@ -12,16 +12,13 @@ import (
 
 // Tests are in package data to allow saving data somewhere besides /var/spool/nodeinfo
 func TestGather(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestGather")
-	rtx.Must(err, "failed to create tempdir")
-	defer os.RemoveAll(dir)
 	ts := time.Date(2018, 12, 13, 11, 45, 23, 0, time.UTC)
 	g := Gatherer{
 		Name: "test",
 		Cmd:  []string{"echo", "hi"},
 	}
 	nodeinfo := &api.NodeInfoV1{}
-	g.Gather(ts, dir, true, nodeinfo)
+	g.Gather(ts, true, nodeinfo)
 	if len(nodeinfo.Commands) != 1 {
 		t.Errorf("len(nodeinfo.Commands) = %v, expected 1", len(nodeinfo.Commands))
 	}
@@ -32,27 +29,20 @@ func TestGather(t *testing.T) {
 }
 
 func TestGatherInvalidCommand(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestGather")
-	rtx.Must(err, "failed to create tempdir")
-	defer os.RemoveAll(dir)
 	ts := time.Date(2018, 12, 13, 11, 45, 23, 0, time.UTC)
 	g := Gatherer{
 		Name: "test",
 		Cmd:  []string{"/non/existent/command"},
 	}
 
-	saveLogFatalf := logFatalf
-	logFatalf = func(format string, v ...any) { panic("logFatalf") }
 	defer func() {
-		r := recover()
-		if r == nil {
+		if r := recover(); r == nil {
 			t.Error("recover() = nil, expected panic")
 		}
-		logFatalf = saveLogFatalf
 	}()
 
 	nodeinfo := &api.NodeInfoV1{}
-	g.Gather(ts, dir, false, nodeinfo)
+	g.Gather(ts, false, nodeinfo)
 	if len(nodeinfo.Commands) != 0 {
 		t.Errorf("len(nodeinfo.Commands) = %v, expected 0", len(nodeinfo.Commands))
 	}
@@ -63,22 +53,47 @@ func TestGatherInvalidCommand(t *testing.T) {
 }
 
 func TestGatherCommandFailed(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestGatherCommandFailed")
-	rtx.Must(err, "failed to create tempdir")
-	defer os.RemoveAll(dir)
 	g := Gatherer{
 		Name: "false",
 		Cmd:  []string{"false"},
 	}
-	saveLogFatalf := logFatalf
-	logFatalf = func(format string, v ...any) { panic("logFatalf") }
 	defer func() {
-		r := recover()
-		if r == nil {
+		if r := recover(); r == nil {
 			t.Error("recover() = nil, expected panic")
 		}
-		logFatalf = saveLogFatalf
 	}()
-	g.Gather(time.Now().UTC(), dir, true, &api.NodeInfoV1{})
+	g.Gather(time.Now().UTC(), true, &api.NodeInfoV1{})
 	// panic == success
+}
+
+func TestSave(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestSave")
+	rtx.Must(err, "failed to create tempdir")
+	defer os.RemoveAll(dir)
+	nodeinfo1 := api.NodeInfoV1{
+		Commands: []api.CmdOut{
+			{
+				Name:        "name1",
+				CommandLine: "cmdLine1",
+				Output:      "output1 line 1\noutput2 line 2",
+			},
+			{
+				Name:        "name2",
+				CommandLine: "cmdLine2",
+				Output:      "output1 line 1\noutput2 line 2",
+			},
+		},
+	}
+	want := `{"commands":[{"Name":"name1","CommandLine":"cmdLine1","Output":"output1 line 1\noutput2 line 2"},{"Name":"name2","CommandLine":"cmdLine2","Output":"output1 line 1\noutput2 line 2"}]}`
+	file, err := Save(dir, "nodeinfo1", nodeinfo1)
+	if err != nil {
+		t.Errorf("Save() = %v, wanted nil", err)
+	}
+	got, err := os.ReadFile(file)
+	if err != nil {
+		t.Errorf("os.ReadFile() = %v, wanted nil", err)
+	}
+	if string(got) != want {
+		t.Errorf("os.ReadFile() = %v, wanted %v", got, want)
+	}
 }

@@ -3,7 +3,10 @@
 package data
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -13,8 +16,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var logFatalf = log.Fatalf
-
 // Gatherer holds all the information needed about a single data-producing command.
 type Gatherer struct {
 	Name string
@@ -22,7 +23,7 @@ type Gatherer struct {
 }
 
 // Gather runs the command and gathers the data into the file in the directory.
-func (g Gatherer) Gather(t time.Time, root string, crashOnError bool, nodeinfo *api.NodeInfoV1) {
+func (g Gatherer) Gather(t time.Time, crashOnError bool, nodeinfo *api.NodeInfoV1) {
 	// Optionally recover from errors.
 	if !crashOnError {
 		defer func() {
@@ -39,12 +40,32 @@ func (g Gatherer) Gather(t time.Time, root string, crashOnError bool, nodeinfo *
 	defer timer.ObserveDuration()
 
 	// Run the command.
-	g.gather(t, root, nodeinfo)
+	g.gather(t, nodeinfo)
+}
+
+// Save marshals the gathered data, writes it to a file, and returns
+// the filename and/or error (if any).
+func Save(datadir, datatype string, nodeinfo api.NodeInfoV1) (string, error) {
+	b, err := json.Marshal(nodeinfo)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal data (error: %v)", err)
+	}
+	nowUTC := time.Now().UTC()
+	dir := fmt.Sprintf("%s/%s/%s", datadir, datatype, nowUTC.Format("2006/01/02"))
+	if err := os.MkdirAll(dir, 0o775); err != nil {
+		return "", fmt.Errorf("failed to create directory (error: %v)", err)
+	}
+	file := fmt.Sprintf("%s/%s.json", dir, nowUTC.Format("20060102T150405.000000Z"))
+	log.Print(file)
+	if err := os.WriteFile(file, b, 0o666); err != nil {
+		return file, fmt.Errorf("failed to write file (error: %v)", err)
+	}
+	return file, nil
 }
 
 // gather runs the command. Gather sets up all monitoring, metrics, and
 // recovery code, and then gather() does the work.
-func (g Gatherer) gather(t time.Time, root string, nodeinfo *api.NodeInfoV1) {
+func (g Gatherer) gather(t time.Time, nodeinfo *api.NodeInfoV1) {
 	cmd := api.CmdOut{
 		Name:        g.Name,
 		CommandLine: strings.Join(g.Cmd, " "),
@@ -52,7 +73,7 @@ func (g Gatherer) gather(t time.Time, root string, nodeinfo *api.NodeInfoV1) {
 	log.Printf("   %v\n", cmd.CommandLine)
 	out, err := exec.Command(g.Cmd[0], g.Cmd[1:]...).Output()
 	if err != nil {
-		logFatalf("failed to run command (error: %v)", err)
+		log.Panicf("failed to run %v (error: %v)", cmd.CommandLine, err)
 	}
 	cmd.Output = strings.TrimSuffix(string(out), "\n")
 	nodeinfo.Commands = append(nodeinfo.Commands, cmd)

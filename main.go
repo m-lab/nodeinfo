@@ -12,12 +12,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"path"
 	"time"
 
@@ -28,6 +25,7 @@ import (
 	"github.com/m-lab/go/uniformnames"
 	"github.com/m-lab/nodeinfo/api"
 	"github.com/m-lab/nodeinfo/config"
+	"github.com/m-lab/nodeinfo/data"
 	"github.com/m-lab/nodeinfo/metrics"
 )
 
@@ -53,30 +51,17 @@ func init() {
 
 // Runs every data gatherer.
 func gather() {
-	err := gatherers.Reload()
-	if err != nil {
+	if err := gatherers.Reload(); err != nil {
 		metrics.ConfigLoadFailures.Inc()
-		log.Println("failed to reload the config. Using old config.")
+		log.Printf("failed to reload the config (error: %v). Using old config.\n", err)
 	}
 	var nodeinfo api.NodeInfoV1
 	t := time.Now().UTC()
 	for _, g := range gatherers.Gatherers() {
-		g.Gather(t, *datadir, *smoketest, &nodeinfo)
+		g.Gather(t, *smoketest, &nodeinfo)
 	}
-	// Now that we have gathered all data, marshal and write it out.
-	b, err := json.Marshal(nodeinfo)
-	if err != nil {
-		log.Fatalf("failed to marshal data (error: %v)", err)
-	}
-	nowUTC := time.Now().UTC()
-	dir := fmt.Sprintf("%s/%s/%s", *datadir, *datatype, nowUTC.Format("2006/01/02"))
-	if err := os.MkdirAll(dir, 0o775); err != nil {
-		log.Fatalf("failed to create directory (error: %v)", err)
-	}
-	file := fmt.Sprintf("%s/%s.json", dir, nowUTC.Format("20060102T150405.000000Z"))
-	log.Print(file)
-	if err := os.WriteFile(file, b, 0o666); err != nil {
-		log.Fatalf("failed to write file (error: %v)", err)
+	if _, err := data.Save(*datadir, *datatype, nodeinfo); err != nil {
+		log.Printf("failed to save data (error: %v)\n", err)
 	}
 }
 
