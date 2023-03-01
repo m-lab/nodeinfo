@@ -1,3 +1,4 @@
+// Package config implements all configuration-related logic for this repo.
 package config
 
 import (
@@ -43,21 +44,21 @@ func (c *fileconfig) Reload() error {
 	metrics.ConfigLoadCount.Inc()
 	contents, err := ioutil.ReadFile(c.filename)
 	if err != nil {
-		log.Println("Could not read file")
+		log.Printf("failed to read %v: %v\n", c.filename, err)
 		return err
 	}
 	var newGatherers []data.Gatherer
 	err = json.Unmarshal(contents, &newGatherers)
 	if err != nil {
-		log.Printf("Could not parse %q", c.filename)
+		log.Printf("failed to parse %q", c.filename)
 		return err
 	}
 	for _, g := range newGatherers {
-		if len(g.Cmd) == 0 || g.Datatype == "" || g.Filename == "" {
+		if g.Name == "" || len(g.Cmd) == 0 {
 			log.Printf("%#v is not a valid gatherer", g)
 			return fmt.Errorf("%#v is not a valid gatherer", g)
 		}
-		if err := uniformnames.Check(g.Datatype); err != nil {
+		if err := uniformnames.Check(g.Name); err != nil {
 			return err
 		}
 	}

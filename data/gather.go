@@ -3,66 +3,78 @@
 package data
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
-	"path"
+	"os/exec"
+	"strings"
 	"time"
 
+	"github.com/m-lab/nodeinfo/api"
 	"github.com/m-lab/nodeinfo/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/m-lab/go/rtx"
-	pipe "gopkg.in/m-lab/pipe.v3"
 )
 
 // Gatherer holds all the information needed about a single data-producing command.
 type Gatherer struct {
-	Datatype string
-	Filename string
-	Cmd      []string
-}
-
-// filename generates the output filename from the timestamp.
-func (g Gatherer) filename(t time.Time) string {
-	return t.Format("20060102T15:04:05.000Z-") + g.Filename
-}
-
-// makeDirectories creates all the required directories to hold the output filename.
-func (g Gatherer) makeDirectories(t time.Time, root string) (string, error) {
-	dirname := path.Join(root, g.Datatype, t.Format("2006/01/02"))
-	return dirname, os.MkdirAll(dirname, 0775)
+	Name string
+	Cmd  []string
 }
 
 // Gather runs the command and gathers the data into the file in the directory.
-func (g Gatherer) Gather(t time.Time, root string, crashOnError bool) {
+func (g Gatherer) Gather(crashOnError bool, nodeinfo *api.NodeInfoV1) {
 	// Optionally recover from errors.
 	if !crashOnError {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("Failed to run %v (error: %q)\n", g, r)
-				metrics.GatherErrors.WithLabelValues(g.Datatype).Inc()
+				log.Printf("failed to run %v (error: %q)\n", g, r)
+				metrics.GatherErrors.WithLabelValues(g.Name).Inc()
 			}
 		}()
 	}
 
 	// Report metrics.
-	metrics.GatherRuns.WithLabelValues(g.Datatype).Inc()
-	timer := prometheus.NewTimer(metrics.GatherRuntime.WithLabelValues(g.Datatype))
+	metrics.GatherRuns.WithLabelValues(g.Name).Inc()
+	timer := prometheus.NewTimer(metrics.GatherRuntime.WithLabelValues(g.Name))
 	defer timer.ObserveDuration()
 
 	// Run the command.
-	g.gather(t, root)
+	g.gather(nodeinfo)
+}
+
+// Save marshals the gathered data, writes it to a file, and returns
+// the filename and/or error (if any).
+func Save(datadir, datatype string, nodeinfo api.NodeInfoV1) (string, error) {
+	b, err := json.Marshal(nodeinfo)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal data (error: %v)", err)
+	}
+	nowUTC := time.Now().UTC()
+	dir := fmt.Sprintf("%s/%s/%s", datadir, datatype, nowUTC.Format("2006/01/02"))
+	if err := os.MkdirAll(dir, 0o775); err != nil {
+		return "", fmt.Errorf("failed to create directory (error: %v)", err)
+	}
+	file := fmt.Sprintf("%s/%s.json", dir, nowUTC.Format("20060102T150405.000000Z"))
+	log.Print(file)
+	if err := os.WriteFile(file, b, 0o666); err != nil {
+		return file, fmt.Errorf("failed to write file (error: %v)", err)
+	}
+	return file, nil
 }
 
 // gather runs the command. Gather sets up all monitoring, metrics, and
 // recovery code, and then gather() does the work.
-func (g Gatherer) gather(t time.Time, root string) {
-	dir, err := g.makeDirectories(t, root)
-	rtx.PanicOnError(err, "Could not make %q", dir)
-	outputfile := path.Join(dir, g.filename(t))
-	log.Print(outputfile)
-	command := pipe.Line(
-		pipe.Exec(g.Cmd[0], g.Cmd[1:]...),
-		pipe.WriteFile(outputfile, 0666))
-	rtx.PanicOnError(pipe.Run(command), "Could not gather %s data", g.Datatype)
+func (g Gatherer) gather(nodeinfo *api.NodeInfoV1) {
+	cmd := api.CmdOut{
+		Name:        g.Name,
+		CommandLine: strings.Join(g.Cmd, " "),
+	}
+	log.Printf("   %v\n", cmd.CommandLine)
+	out, err := exec.Command(g.Cmd[0], g.Cmd[1:]...).Output()
+	if err != nil {
+		log.Panicf("failed to run %v (error: %v)", cmd.CommandLine, err)
+	}
+	cmd.Output = strings.TrimSuffix(string(out), "\n")
+	nodeinfo.Commands = append(nodeinfo.Commands, cmd)
 }

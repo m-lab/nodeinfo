@@ -14,29 +14,27 @@ import (
 
 func TestConfigCreationAndReload(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestConfigCreation")
-	rtx.Must(err, "Could not create tempdir")
+	rtx.Must(err, "failed to create tempdir")
 	defer os.RemoveAll(dir)
 
 	filecontents := `[
 		{
-			"Datatype": "uname",
-			"Filename": "uname.txt",
+			"Name": "uname",
 			"Cmd": ["uname", "-a"]
 		},
 		{
-			"Datatype": "ifconfig",
-			"Filename": "ifconfig.txt",
+			"Name": "ifconfig",
 			"Cmd": ["ifconfig"]
 		}
 	]
 	`
 	expected := []data.Gatherer{
-		{Datatype: "uname", Filename: "uname.txt", Cmd: []string{"uname", "-a"}},
-		{Datatype: "ifconfig", Filename: "ifconfig.txt", Cmd: []string{"ifconfig"}},
+		{Name: "uname", Cmd: []string{"uname", "-a"}},
+		{Name: "ifconfig", Cmd: []string{"ifconfig"}},
 	}
-	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents), 0666), "Could not write config")
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents), 0o666), "failed to write config")
 	c, err := config.Create(dir + "/config.json")
-	rtx.Must(err, "Could not read config.json")
+	rtx.Must(err, "failed to read config.json")
 	g := c.Gatherers()
 	if !reflect.DeepEqual(g, expected) {
 		t.Errorf("%v != %v", g, expected)
@@ -44,22 +42,21 @@ func TestConfigCreationAndReload(t *testing.T) {
 
 	filecontents2 := `[
 		{
-			"Datatype": "ls",
-			"Filename": "ls.txt",
+			"Name": "ls",
 			"Cmd": ["ls", "-l"]
 		}
 	]
 	`
 	expected2 := []data.Gatherer{
-		{Datatype: "ls", Filename: "ls.txt", Cmd: []string{"ls", "-l"}},
+		{Name: "ls", Cmd: []string{"ls", "-l"}},
 	}
-	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents2), 0666), "Could not write replacement config")
-	rtx.Must(c.Reload(), "Could not reload config")
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(filecontents2), 0o666), "failed to write replacement config")
+	rtx.Must(c.Reload(), "failed to reload config")
 	g = c.Gatherers()
 	if !reflect.DeepEqual(g, expected2) {
 		t.Errorf("%v != %v", g, expected2)
 	}
-	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte("bad content"), 0666), "Could not write replacement config")
+	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte("bad content"), 0o666), "failed to write replacement config")
 	if c.Reload() == nil {
 		t.Error("We should not have been able to reload the config")
 	}
@@ -69,20 +66,10 @@ func TestConfigCreationAndReload(t *testing.T) {
 	}
 
 	incompleteFileContents := []string{
-		// Dataype is not Datatype
+		// Mane is not Name
 		`[
 			{
-				"Dataype": "ls",
-				"Filename": "ls.txt",
-				"Cmd": ["ls", "-l"]
-			}
-		]
-		`,
-		// Filenam is not Filename
-		`[
-			{
-				"Datatype": "ls",
-				"Filenam": "ls.txt",
+				"Mane": "ls",
 				"Cmd": ["ls", "-l"]
 			}
 		]
@@ -90,24 +77,22 @@ func TestConfigCreationAndReload(t *testing.T) {
 		// Cmb is not Cmd
 		`[
 			{
-				"Datatype": "ls",
-				"Filename": "ls.txt",
+				"Name": "ls",
 				"Cmb": ["ls", "-l"]
 			}
 		]
 		`,
-		// Datatype does not conform to the uniform naming conventions.
+		// Name does not conform to the uniform naming conventions.
 		`[
 			{
-				"Datatype": "ls-a-lot",
-				"Filename": "ls.txt",
+				"Name": "ls-a-lot",
 				"Cmd": ["ls", "-l"]
 			}
 		]
 		`,
 	}
 	for _, inc := range incompleteFileContents {
-		rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(inc), 0666), "Could not write replacement config")
+		rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(inc), 0o666), "failed to write replacement config")
 		if c.Reload() == nil {
 			t.Error("We should not have been able to reload the config")
 		}
