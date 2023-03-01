@@ -23,7 +23,7 @@ type Gatherer struct {
 }
 
 // Gather runs the command and gathers the data into the file in the directory.
-func (g Gatherer) Gather(t time.Time, crashOnError bool, nodeinfo *api.NodeInfoV1) {
+func (g Gatherer) Gather(crashOnError bool, nodeinfo *api.NodeInfoV1) {
 	// Optionally recover from errors.
 	if !crashOnError {
 		defer func() {
@@ -40,7 +40,7 @@ func (g Gatherer) Gather(t time.Time, crashOnError bool, nodeinfo *api.NodeInfoV
 	defer timer.ObserveDuration()
 
 	// Run the command.
-	g.gather(t, nodeinfo)
+	g.gather(nodeinfo)
 }
 
 // Save marshals the gathered data, writes it to a file, and returns
@@ -65,7 +65,7 @@ func Save(datadir, datatype string, nodeinfo api.NodeInfoV1) (string, error) {
 
 // gather runs the command. Gather sets up all monitoring, metrics, and
 // recovery code, and then gather() does the work.
-func (g Gatherer) gather(t time.Time, nodeinfo *api.NodeInfoV1) {
+func (g Gatherer) gather(nodeinfo *api.NodeInfoV1) {
 	cmd := api.CmdOut{
 		Name:        g.Name,
 		CommandLine: strings.Join(g.Cmd, " "),

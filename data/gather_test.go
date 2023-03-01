@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/nodeinfo/api"
@@ -12,13 +11,12 @@ import (
 
 // Tests are in package data to allow saving data somewhere besides /var/spool/nodeinfo
 func TestGather(t *testing.T) {
-	ts := time.Date(2018, 12, 13, 11, 45, 23, 0, time.UTC)
 	g := Gatherer{
 		Name: "test",
 		Cmd:  []string{"echo", "hi"},
 	}
 	nodeinfo := &api.NodeInfoV1{}
-	g.Gather(ts, true, nodeinfo)
+	g.Gather(true, nodeinfo)
 	if len(nodeinfo.Commands) != 1 {
 		t.Errorf("len(nodeinfo.Commands) = %v, expected 1", len(nodeinfo.Commands))
 	}
@@ -29,7 +27,6 @@ func TestGather(t *testing.T) {
 }
 
 func TestGatherInvalidCommand(t *testing.T) {
-	ts := time.Date(2018, 12, 13, 11, 45, 23, 0, time.UTC)
 	g := Gatherer{
 		Name: "test",
 		Cmd:  []string{"/non/existent/command"},
@@ -42,7 +39,7 @@ func TestGatherInvalidCommand(t *testing.T) {
 	}()
 
 	nodeinfo := &api.NodeInfoV1{}
-	g.Gather(ts, false, nodeinfo)
+	g.Gather(false, nodeinfo)
 	if len(nodeinfo.Commands) != 0 {
 		t.Errorf("len(nodeinfo.Commands) = %v, expected 0", len(nodeinfo.Commands))
 	}
@@ -62,7 +59,7 @@ func TestGatherCommandFailed(t *testing.T) {
 			t.Error("recover() = nil, expected panic")
 		}
 	}()
-	g.Gather(time.Now().UTC(), true, &api.NodeInfoV1{})
+	g.Gather(true, &api.NodeInfoV1{})
 	// panic == success
 }
 

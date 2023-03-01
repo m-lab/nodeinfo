@@ -56,9 +56,8 @@ func gather() {
 		log.Printf("failed to reload the config (error: %v). Using old config.\n", err)
 	}
 	var nodeinfo api.NodeInfoV1
-	t := time.Now().UTC()
 	for _, g := range gatherers.Gatherers() {
-		g.Gather(t, *smoketest, &nodeinfo)
+		g.Gather(*smoketest, &nodeinfo)
 	}
 	if _, err := data.Save(*datadir, *datatype, nodeinfo); err != nil {
 		log.Printf("failed to save data (error: %v)\n", err)
