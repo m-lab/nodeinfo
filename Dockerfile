@@ -12,6 +12,7 @@ FROM alpine:3.7
 # Add all binaries that we may want to run that are not in alpine by default.
 RUN apk add --no-cache lshw
 COPY --from=build /go/bin/nodeinfo /
+COPY --from=build /go/src/github.com/m-lab/nodeinfo/api/nodeinfo1.json /var/spool/datatypes/nodeinfo1.json
 WORKDIR /
 # Make sure /nodeinfo can run (has no missing external dependencies).
 RUN /nodeinfo -h 2> /dev/null
