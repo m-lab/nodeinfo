@@ -1,0 +1,29 @@
+version: '3.7'
+services:
+  nodeinfo:
+    image: nodeinfo:latest
+    volumes:
+      - ./testdata:/testdata
+    command:
+      - -config=./testdata/config.json
+      - -datadir=/testdata/var/spool/experiment
+      - -wait=15s
+
+  jostler:
+    image: jostler:latest
+    volumes:
+      - ./testdata:/testdata
+    command:
+      - -gcs-local-disk
+      - -mlab-node-name=experiment-mlab1-lga01.mlab-sandbox.measurement-lab.org
+      - -gcs-bucket=newclient,download,upload
+      - -gcs-data-dir=/testdata/gcs/autoload/v1
+      - -local-data-dir=/testdata/var/spool
+      - -experiment=experiment
+      - -datatype=nodeinfo1
+      - -datatype-schema-file=nodeinfo1:/testdata/var/spool/datatypes/nodeinfo1.json
+      - -bundle-size-max=200000
+      - -bundle-age-max=60s
+      - -missed-age=60s
+      - -missed-interval=15s
+      - -verbose

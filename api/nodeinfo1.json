@@ -1,0 +1,24 @@
+[
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "Output",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CommandLine",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Name",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "commands",
+    "type": "RECORD"
+  }
+]
