@@ -13,6 +13,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -86,6 +87,9 @@ func main() {
 	rtx.Must(uniformnames.Check(*datatype), "Datatype does not conform to the M-Lab uniform naming conventions")
 
 	copyDatatypeSchema()
+	if err := os.MkdirAll(fmt.Sprintf("%s/%s", *datadir, *datatype), 0o775); err != nil {
+		log.Panic(err)
+	}
 
 	metricSrv := prometheusx.MustServeMetrics()
 	defer metricSrv.Shutdown(mainCtx)
