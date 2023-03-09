@@ -15,6 +15,7 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"os"
 	"path"
 	"time"
 
@@ -71,10 +72,21 @@ func main() {
 	rtx.Must(uniformnames.Check(path.Base(*datadir)), "The destination directory does not conform to the M-Lab uniform naming conventions")
 	rtx.Must(uniformnames.Check(*datatype), "Datatype does not conform to the M-Lab uniform naming conventions")
 
+	// Copy the datatype schema file.
+	schema, err := os.ReadFile("/nodeinfo1.json")
+	if err != nil {
+		log.Panic(err)
+	}
+	if err := os.MkdirAll("/var/spool/datatypes", 0o775); err != nil {
+		log.Panic(err)
+	}
+	if err := os.WriteFile("/var/spool/datatypes/nodeinfo1.json", schema, 0o644); err != nil {
+		log.Panic(err)
+	}
+
 	metricSrv := prometheusx.MustServeMetrics()
 	defer metricSrv.Shutdown(mainCtx)
 
-	var err error
 	gatherers, err = config.Create(*configFile)
 	rtx.Must(err, "failed to read config on the first try. Shutting down.")
 	// Seeds math/rand with a unique seed. Without this, rand will return a
