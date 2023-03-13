@@ -14,6 +14,31 @@ import (
 	"github.com/m-lab/go/rtx"
 )
 
+var dtSchema = `[
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "Output",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CommandLine",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Name",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "commands",
+    "type": "RECORD"
+  }
+]`
+
 func countFiles(dir string) int {
 	filecount := 0
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -40,8 +65,11 @@ func TestMainOnce(t *testing.T) {
 
 	config := `[{"Name": "uname", "Cmd": ["uname", "-a"]}]`
 	rtx.Must(ioutil.WriteFile(dir+"/config.json", []byte(config), 0o666), "failed to write config")
+	rtx.Must(ioutil.WriteFile(dir+"/nodeinfo1.json", []byte(dtSchema), 0o666), "failed to write schema")
 
 	*datadir = dir + "/data"
+	*schemaDir = dir + "/datatypes"
+	*schemaFile = dir + "/nodeinfo1.json"
 	*configFile = dir + "/config.json"
 	*once = true
 	*smoketest = true
@@ -67,8 +95,11 @@ func TestMainMultipleAndReload(t *testing.T) {
 	rtx.Must(err, "failed to create tempdir")
 	defer os.RemoveAll(dir)
 	rtx.Must(os.MkdirAll(dir+"/data", 0o777), "failed to create data subdir")
+	rtx.Must(ioutil.WriteFile(dir+"/nodeinfo1.json", []byte(dtSchema), 0o666), "failed to write schema")
 
 	*datadir = dir + "/data"
+	*schemaDir = dir + "/datatypes"
+	*schemaFile = dir + "/nodeinfo1.json"
 	*once = false
 	*smoketest = false
 	*waittime = time.Duration(1 * time.Millisecond)
